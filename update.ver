@@ -1,0 +1,57 @@
+<?php
+	require_once("config/cf.php");	
+	require_once("config/classes.php");	
+	require_once("config/functions.php");
+	
+	$realm='"Nod32 auth"';	
+
+	$user=substr(strip_tags(stripslashes(trim($_SERVER['PHP_AUTH_USER']))),0,16);
+	$pass=substr(strip_tags(stripslashes(trim($_SERVER['PHP_AUTH_PW']))),0,16);
+	if (empty($user)||empty($pass)) 
+	{
+		header("WWW-Authenticate: Basic realm=$realm");
+		header('HTTP/1.0 401 Unauthorized');    
+		exit;
+	}	
+	else
+	{			
+		$ver=((int)substr(strip_tags(stripslashes(trim($_REQUEST["ver"]))),0,1)==2)?"nod_upd":"eset_upd";
+		$my=new datamysql(MYSQL_HOST,MYSQL_BASE,MYSQL_USER,MYSQL_PASS);
+		
+		
+		$q="select * from users where (login='$user') & (pass=md5('$pass')) & ((user_days_enable=-1)|(DATEDIFF(NOW(),user_start_date)<=user_days_enable)) limit 1";		
+		$users=&$my->query($q);		
+		if($users)
+		{			
+			$id_user=$users[0]["id_user"];			
+			$logins_per_day=$users[0]["logins_per_day"];			
+			$addr=getremoteaddr();			
+			$logins=&$my->query("select count(id_user)as logins_per_day from login_stat where (id_user=$id_user) & (DATEDIFF(CURRENT_DATE,DATE_FORMAT(date_time,'%Y-%m-%d'))=0) group by id_user");						
+			if (($logins_per_day==-1)||($logins && $logins[0]["logins_per_day"]<=$logins_per_day)||(!$logins))
+			{					
+				$my->uquery("insert into login_stat (id_user,ip_addr) values($id_user,'$addr')");
+				$file="$ver/update.ver";
+				header('Content-Description: File Transfer');
+				header('Content-Type: application/octet-stream');	
+				header('Content-Disposition: attachment; filename='.basename($file));
+				header('Content-Transfer-Encoding: binary');
+				header("Expires: Thu, 01 Jan 1970 00:00:01 GMT");
+				header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT"); 
+				header("Cache-Control: no-cache, must-revalidate"); 
+				header("Pragma: no-cache"); 				
+				header('Content-Length: ' . filesize($file));
+				ob_clean();
+				flush();
+				readfile($file);				
+			}	
+		}
+		else		
+		{
+			header("WWW-Authenticate: Basic realm=$realm");
+			header('HTTP/1.0 401 Unauthorized');    
+			exit;
+		}
+	}
+
+?>
+

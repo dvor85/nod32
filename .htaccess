@@ -1,0 +1,16 @@
+RewriteEngine On
+RewriteBase /
+#RewriteRule ^v([0-9])/ /update.ver?ver=$1
+RewriteRule eset_upd/ /update.ver?ver=3
+RewriteRule nod_upd/ /update.ver?ver=2
+
+AddHandler application/x-httpd-php .ver
+DirectoryIndex update.ver
+Options -Indexes
+
+<Files "admed.php">
+AuthName "Password Required"
+AuthType Basic
+AuthUserFile /usr/local/etc/pwd.file
+Require user adm
+</Files>
